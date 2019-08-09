@@ -2,8 +2,7 @@ const express = require('express');
 const app = express();
 const fs = require("fs");
 const bodyParser = require('body-parser');
-// const CronJob = require('cron').CronJob;
-var cron = require('node-cron');
+const cron = require('node-cron');
 
 // App config.
 app.use(bodyParser.json());
@@ -142,91 +141,91 @@ cron.schedule('*/2 * * * * *', async () => {
     fs.readFile(txFile, 'utf8', async (err, json) => {
         const file = JSON.parse(json);
         let transactions = file.transactions;
-        let tx = transactions.shift();
 
-        // let res =
-        // if (txInProcess.tx == null || txInProcess.processed || txInProcess.tx.nonce !== tx.nonce) {
-        //     txInProcess = {
-        //         tx: tx,
-        //         processed: false,
-        //     };
-        // }
-        // console.log(JSON.stringify(txInProcess));
-        // console.log(JSON.stringify(tx));
+        if (transactions.length > 0) {
+            let tx = transactions.shift();
 
-        // Build message.
-        const txCount = await web3.eth.getTransactionCount(tx.addressMaker);
-        const nonce = web3.utils.toHex(txCount);
-        let message =  abi.soliditySHA3(
-            ["address", "address", "uint256", "uint256", "address", "uint256"],
-            [tx.tokenMaker, tx.tokenTaker, tx.amountMaker, tx.amountTaker, tx.addressMaker, nonce]
-        );
+            // let res =
+            // if (txInProcess.tx == null || txInProcess.processed || txInProcess.tx.nonce !== tx.nonce) {
+            //     txInProcess = {
+            //         tx: tx,
+            //         processed: false,
+            //     };
+            // }
+            // console.log(JSON.stringify(txInProcess));
+            // console.log(JSON.stringify(tx));
 
-        // Sign msg.
-        const MATCHING_ENGINE_PK = '0xfb1dfe2ec754c717d2c3226fada7e5cf24450eac999151674837e04f5395cf9b';
-        const MATCHING_ENGINE_ADDR = '0x8FC9b674Aa37B879F6E9B096C8dB63f92d63A446';
-        let signatureObject = await signMessage(message, MATCHING_ENGINE_PK);
-        let signature = signatureObject.signature;
-        console.log(signatureObject);
+            // Build message.
+            const txCount = await web3.eth.getTransactionCount(tx.addressMaker);
+            const nonce = web3.utils.toHex(txCount);
+            let message =  abi.soliditySHA3(
+                ["address", "address", "uint256", "uint256", "address", "uint256"],
+                [tx.tokenMaker, tx.tokenTaker, tx.amountMaker, tx.amountTaker, tx.addressMaker, nonce]
+            );
 
-        // Send msg to DEX.
-        const from = {
-            address: MATCHING_ENGINE_ADDR,
-            privateKey: MATCHING_ENGINE_PK.toString().substr(2)
-        };
-        const to = '0xE312B747d86964c44A7887778CF6F656759df116'; //contracts.dex.options.address;
-        const value = '';
-        const jsonInterface = {
-            name: 'trade',
-            type: 'function',
-            inputs: [
-                {
-                    type: 'address',
-                    name: 'tokenMaker'
-                },
-                {
-                    type: 'address',
-                    name: 'tokenTaker'
-                },
-                {
-                    type: 'uint256',
-                    name: 'amountMaker'
-                },
-                {
-                    type: 'uint256',
-                    name: 'amountTaker'
-                },
-                {
-                    type: 'address',
-                    name: 'addressMaker'
-                },
-                {
-                    type: 'address',
-                    name: 'addressTaker'
-                },
-                {
-                    type: 'uint256',
-                    name: 'nonce'
-                },
-                {
-                    type: 'bytes',
-                    name: 'signature'
-                },
-            ]
-        };
-        const params = [tx.tokenMaker, tx.tokenTaker, tx.amountMaker, tx.amountTaker, tx.addressMaker, tx.addressTaker, nonce, signature];
-        const data = web3.eth.abi.encodeFunctionCall(jsonInterface, params);
+            // Sign msg.
+            const MATCHING_ENGINE_PK = '0xfb1dfe2ec754c717d2c3226fada7e5cf24450eac999151674837e04f5395cf9b';
+            const MATCHING_ENGINE_ADDR = '0x8FC9b674Aa37B879F6E9B096C8dB63f92d63A446';
+            let signatureObject = await signMessage(message, MATCHING_ENGINE_PK);
+            let signature = signatureObject.signature;
+            console.log(signatureObject);
 
-        let res = sendTransaction(from, to, value, data);
-        console.log("RES");
-        console.log(res);
+            // Send msg to DEX.
+            const from = {
+                address: MATCHING_ENGINE_ADDR,
+                privateKey: MATCHING_ENGINE_PK.toString().substr(2)
+            };
+            const to = '0xE312B747d86964c44A7887778CF6F656759df116'; //contracts.dex.options.address;
+            const value = '';
+            const jsonInterface = {
+                name: 'trade',
+                type: 'function',
+                inputs: [
+                    {
+                        type: 'address',
+                        name: 'tokenMaker'
+                    },
+                    {
+                        type: 'address',
+                        name: 'tokenTaker'
+                    },
+                    {
+                        type: 'uint256',
+                        name: 'amountMaker'
+                    },
+                    {
+                        type: 'uint256',
+                        name: 'amountTaker'
+                    },
+                    {
+                        type: 'address',
+                        name: 'addressMaker'
+                    },
+                    {
+                        type: 'address',
+                        name: 'addressTaker'
+                    },
+                    {
+                        type: 'uint256',
+                        name: 'nonce'
+                    },
+                    {
+                        type: 'bytes',
+                        name: 'signature'
+                    },
+                ]
+            };
+            const params = [tx.tokenMaker, tx.tokenTaker, tx.amountMaker, tx.amountTaker, tx.addressMaker, tx.addressTaker, nonce, signature];
+            const data = web3.eth.abi.encodeFunctionCall(jsonInterface, params);
 
+            let res = sendTransaction(from, to, value, data);
+            console.log("RES");
+            console.log(res);
+        } else {
+            console.log("Waiting for transactions...");
+        }
     });
 });
-
-// let balanceOf = await web3.eth.getBalance('0x9cA2B52eCB86D6D7cD19197BdE457494EA55d922');
-// console.log(web3.utils.fromWei(balanceOf));
-
 
 const server = app.listen(port, hostname, function () {
     const host = server.address().address;
