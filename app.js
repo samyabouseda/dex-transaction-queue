@@ -62,19 +62,6 @@ app.get('/transactions', (req, res) => {
     });
 });
 
-app.get('/transactions/exe', (req, res) => {
-    fs.readFile(txFile, 'utf8', (err, json) => {
-        const data = JSON.parse(json);
-        let transactions = data.transactions;
-        let tx = transactions.shift()
-        res.end( JSON.stringify(tx) );
-    });
-});
-
-// let txInProcess = {
-//     tx: null,
-//     processed: false,
-// };
 buildTransactionObject = async (from, to, value, data) => {
     return new Promise(async function(resolve, reject) {
         let txObject;
@@ -111,22 +98,29 @@ signTransaction = (txData, privateKey) => {
 sendTransaction = async (from, to, value, data) => {
     // Build transaction object.
     const txObject = await buildTransactionObject(from, to, value, data);
-    console.log(txObject);
 
     // Sign transaction object.
     const tx = signTransaction(txObject, from.privateKey);
-    console.log(tx);
 
     // Broadcast the transaction.
-    return await sendSignedTransaction(tx);
+    try {
+        return await sendSignedTransaction(tx);
+    } catch(error) {
+        return 0;
+    }
+
 };
 
 sendSignedTransaction = async tx => {
-    let res = await web3.eth.sendSignedTransaction(tx, (err, txHash) => {
-        if (err) console.log(err);
-        else console.log('txHash: ', txHash);
+    await web3.eth.sendSignedTransaction(tx, (err, txHash) => {
+        if (err) {
+            console.log(err);
+            return 0;
+        } else {
+            console.log('txHash: ', txHash);
+            return txHash;
+        }
     });
-    console.log(res);
 };
 
 signMessage = async (message, privateKey) => {
@@ -136,24 +130,16 @@ signMessage = async (message, privateKey) => {
     );
 };
 
-// To run every minute remove one star.
-cron.schedule('*/2 * * * * *', async () => {
+// let pending_tx = [];
+
+// To run every minute use 4 stars.
+cron.schedule('*/5 * * * * *', async () => {
     fs.readFile(txFile, 'utf8', async (err, json) => {
         const file = JSON.parse(json);
         let transactions = file.transactions;
 
         if (transactions.length > 0) {
             let tx = transactions.shift();
-
-            // let res =
-            // if (txInProcess.tx == null || txInProcess.processed || txInProcess.tx.nonce !== tx.nonce) {
-            //     txInProcess = {
-            //         tx: tx,
-            //         processed: false,
-            //     };
-            // }
-            // console.log(JSON.stringify(txInProcess));
-            // console.log(JSON.stringify(tx));
 
             // Build message.
             const txCount = await web3.eth.getTransactionCount(tx.addressMaker);
@@ -168,7 +154,7 @@ cron.schedule('*/2 * * * * *', async () => {
             const MATCHING_ENGINE_ADDR = '0x8FC9b674Aa37B879F6E9B096C8dB63f92d63A446';
             let signatureObject = await signMessage(message, MATCHING_ENGINE_PK);
             let signature = signatureObject.signature;
-            console.log(signatureObject);
+            // console.log(signatureObject);
 
             // Send msg to DEX.
             const from = {
@@ -218,9 +204,32 @@ cron.schedule('*/2 * * * * *', async () => {
             const params = [tx.tokenMaker, tx.tokenTaker, tx.amountMaker, tx.amountTaker, tx.addressMaker, tx.addressTaker, nonce, signature];
             const data = web3.eth.abi.encodeFunctionCall(jsonInterface, params);
 
-            let res = sendTransaction(from, to, value, data);
-            console.log("RES");
-            console.log(res);
+            let res = await sendTransaction(from, to, value, data);
+
+            if (res === 0) {
+                // TODO: retry failed transaction once before going to next.
+                console.log("Transaction Failed");
+
+                // Update transaction file.
+                transactions.push(tx);
+                file.transactions = transactions;
+                json = JSON.stringify(file);
+                fs.writeFile(txFile, json, 'utf-8', () => {});
+            } else {
+                console.log(res);
+
+                // let sentTx = {
+                //     txHash: res,
+                //     tx: tx,
+                //     status: 'pending',
+                // };
+                // pending_tx.push(sentTx);
+
+                // Update transaction file.
+                file.transactions = transactions;
+                json = JSON.stringify(file);
+                fs.writeFile(txFile, json, 'utf-8', () => {});
+            }
         } else {
             console.log("Waiting for transactions...");
         }
