@@ -13,7 +13,7 @@ const hostname = '127.0.0.1';
 const txFile = __dirname + "/" + "transactions.json";
 
 // WEB 3
-const Web3 = require('web3')
+const Web3 = require('web3');
 const url = 'HTTP://127.0.0.1:7545';
 const web3 = new Web3(url);
 const abi = require('ethereumjs-abi');
@@ -161,7 +161,7 @@ cron.schedule('*/5 * * * * *', async () => {
                 address: MATCHING_ENGINE_ADDR,
                 privateKey: MATCHING_ENGINE_PK.toString().substr(2)
             };
-            const to = '0xE312B747d86964c44A7887778CF6F656759df116'; //contracts.dex.options.address;
+            const to = '0x82c1283C047fCD8F551E606b76cA6cB2a20217c2'; //contracts.dex.options.address;
             const value = '';
             const jsonInterface = {
                 name: 'trade',
@@ -217,6 +217,7 @@ cron.schedule('*/5 * * * * *', async () => {
                 fs.writeFile(txFile, json, 'utf-8', () => {});
             } else {
                 console.log(res);
+
 
                 // let sentTx = {
                 //     txHash: res,
